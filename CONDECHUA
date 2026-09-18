@@ -11,17 +11,17 @@ local spawnEntity = loadstring(game:HttpGet("https://codeberg.org/qjjdjdjjd/Pres
 
 spawnEntity({
     AssetId = "rbxassetid://78614439753159",
-    EntityName = "A60Blitz",
-    MoveSpeed = 288,
-    HitboxRadius = 30,
-    ShakeRadius = 200,
+    EntityName = "A60GodR",
+    MoveSpeed = 30,
+    HitboxRadius = 15,
+    ShakeRadius = 100,
     DamageAmount = 100,    
     InstantKill = true,
     ConstantBloodSucking = false,
     DelayEachDamage = 0.1,
     
     DelayWhenSpawned = true,     
-    Delay = 1, 
+    Delay = 0, 
     Rebounding = true,  
     Reversed = false, 
     MinRebounds = 2,   
@@ -30,7 +30,7 @@ spawnEntity({
     WallPenetrating = false,
     IgnoreHiding = true,
     RoomLimits = false,
-    RoomLimitValue = 5,
+    RoomLimitValue = 2,
     EntityLifeTime = "Forever",
     
     YOffset = Vector3.new(0, -1, 0),
@@ -40,7 +40,7 @@ spawnEntity({
     MaxDarkness = 0.2,
     ShakeIntensity = 2.5,
     ShakeSpeedMultiplier = 1.5,
-    LightFlickerTime = 10,   
+    LightFlickerTime = 20,   
 
     DeafModeFrameTransparency = 0,
     DeafModeFrameColor = Color3.new(1,1,1),
@@ -48,34 +48,34 @@ spawnEntity({
     DeafModeFrameDistance = 150,
     DependsOnSpeed = true,
     
-    EnableFlicker = false,
+    EnableFlicker = true,
     EnableShake = true,
-    EnableBlackout = true,
-    EnableBreakLights = true,
+    EnableBlackout = false,
+    EnableBreakLights = false,
     
     GithubSound = "",         
     PlayGitSoundWhenSpawned = false, 
     SoundVolume = 1,        
     SoundPlaybackSpeed = 1,
 
-    LightBreakRange = 67,                          
+    LightBreakRange = 35,                          
     LightDarkenPercent = 0.11,                
     LightAutoScanInterval = 0.1,              
     
     LightSoundId = "rbxassetid://13303926122", 
-    LightSoundVolume = 1,                   
-    LightSoundDistance = 40,                 
+    LightSoundVolume = 2,                   
+    LightSoundDistance = 150,                 
     
     LightParticleTexture = "rbxassetid://257173628", 
     LightParticleDuration = 0.3,
     
     DeathImage = "rbxassetid://11417375410",
-    DeathName = "A-60",
-    DeathNotes = "HEHEHEH",
+    DeathName = "DEER 60 XD",
+    DeathNotes = "XDXDXDDXDXDXDXDXD",
     DeathImageColor = Color3.fromRGB(255, 255, 255),
     
     OnSpawn = function(entityModel)
-        local model = entityModel or workspace:FindFirstChild("A60God")
+        local model = entityModel or workspace:FindFirstChild("A60GodR")
         if model then
             -- Khóa vật lý và tắt va chạm
             for _, part in ipairs(model:GetDescendants()) do
@@ -89,14 +89,15 @@ spawnEntity({
 
             -- Xác định bộ phận gắn âm thanh (gắn vào PrimaryPart hoặc part bất kỳ của Model)
             local soundParent = model.PrimaryPart or model:FindFirstChildWhichIsA("BasePart") or model
-            local soundAsset = GitAud("https://github.com/Cyrene611/Multi-Monster-/raw/refs/heads/main/MultiBlitzClose.mp3", "Blitzclose")
+            local soundAsset = GitAud("https://github.com/Cyrene611/Multi-Monster-/raw/refs/heads/main/Deer_god_footsteps.mp3.mpeg_1_1_1.mp3", "DeerGodFootsteps")
 
             -- Âm thanh 1 (RollOffMaxDistance = 450, Volume = 6)
             local sound1 = Instance.new("Sound")
             sound1.Name = "EntitySound_Far"
             sound1.SoundId = soundAsset
-            sound1.Volume = 2
-            sound1.RollOffMaxDistance = 355
+            sound1.Volume = 10
+            sound1.RollOffMaxDistance = 666
+            sound1.RollOffMinDistance = 120
             sound1.Looped = true
             sound1.Parent = soundParent
             sound1:Play()
@@ -105,8 +106,8 @@ spawnEntity({
             local sound2 = Instance.new("Sound")
             sound2.Name = "EntitySound_Near"
             sound2.SoundId = soundAsset
-            sound2.Volume = 4
-            sound2.RollOffMaxDistance = 288
+            sound2.Volume = 1
+            sound2.RollOffMaxDistance = 200
             sound2.Looped = true
             sound2.Parent = soundParent
             sound2:Play()
