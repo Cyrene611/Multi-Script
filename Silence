@@ -1,0 +1,283 @@
+local TweenService = game:GetService("TweenService")
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local Players = game:GetService("Players")
+local localPlayer = Players.LocalPlayer
+
+local gameplayFolder = workspace:FindFirstChild("GameplayFolder")
+if not gameplayFolder then
+    warn("Không tìm thấy 'GameplayFolder' trong Workspace!")
+    return
+end
+
+local Rooms = gameplayFolder:FindFirstChild("Rooms")
+if not Rooms then
+    warn("Không tìm thấy 'Rooms' trong GameplayFolder!")
+    return
+end
+
+-- 1. Hàm Fade In / Fade Out mượt cho Particle của thực thể
+local function fadeModelParticles(model, isFadeOut, duration)
+    duration = duration or 0.75
+    local particleData = {}
+
+    for _, desc in ipairs(model:GetDescendants()) do
+        if desc:IsA("ParticleEmitter") then
+            table.insert(particleData, {
+                emitter = desc,
+                originalTransparency = desc.Transparency
+            })
+        end
+    end
+
+    if #particleData == 0 then return end
+
+    local fadeVal = Instance.new("NumberValue")
+    fadeVal.Value = isFadeOut and 0 or 1
+
+    local connection = fadeVal.Changed:Connect(function(factor)
+        for _, data in ipairs(particleData) do
+            local origKeypoints = data.originalTransparency.Keypoints
+            local newKeypoints = {}
+
+            for _, kp in ipairs(origKeypoints) do
+                local currentVal = kp.Value + (1 - kp.Value) * factor
+                table.insert(newKeypoints, NumberSequenceKeypoint.new(kp.Time, math.clamp(currentVal, 0, 1)))
+            end
+
+            data.emitter.Transparency = NumberSequence.new(newKeypoints)
+        end
+    end)
+
+    local tweenInfo = TweenInfo.new(duration, Enum.EasingStyle.Linear)
+    local targetFactor = isFadeOut and 1 or 0
+    local tween = TweenService:Create(fadeVal, tweenInfo, {Value = targetFactor})
+    
+    tween:Play()
+    tween.Completed:Wait()
+
+    connection:Disconnect()
+    fadeVal:Destroy()
+end
+
+-- 2. Sóng nổ đèn lan từ TÂM THỰC THỂ (Thu nhỏ & Xóa trong 4s)
+local function triggerLightShockwaveFromEntity(entityPos, entityRoom)
+    local maxRadius = 100
+    local maxWaveTime = 0.2
+    local affectedItems = {}
+    local processedParts = {}
+
+    local descendants = entityRoom:GetDescendants()
+    for i = 1, #descendants do
+        local obj = descendants[i]
+
+        -- A. Lọc Light theo path chuẩn từ script của ông
+        if obj:IsA("Light") then
+            local path = obj:GetFullName():lower()
+            if path:find("%.lights") or path:find("neon") or path:find("nec") then
+                local parentPart = obj.Parent
+                local dist = (parentPart and parentPart:IsA("BasePart")) and (parentPart.Position - entityPos).Magnitude or 0
+                
+                if dist <= maxRadius then
+                    table.insert(affectedItems, {
+                        light = obj,
+                        dist = dist
+                    })
+                end
+            end
+        
+        -- B. CHỈ lọc Part theo đúng TÊN (neon, smallneon, nec) - Bỏ check Material
+        elseif obj:IsA("BasePart") then
+            local nameLower = obj.Name:lower()
+            if nameLower == "neon" or nameLower == "smallneon" or nameLower == "nec" then
+                if not processedParts[obj] then
+                    local dist = (obj.Position - entityPos).Magnitude
+                    if dist <= maxRadius then
+                        processedParts[obj] = true
+                        table.insert(affectedItems, {
+                            part = obj,
+                            dist = dist
+                        })
+                    end
+                end
+            end
+        end
+    end
+
+    -- Sắp xếp theo khoảng cách lan từ thực thể ra ngoài
+    table.sort(affectedItems, function(a, b) return a.dist < b.dist end)
+
+    local targetColor = Color3.fromRGB(240, 0, 0)
+
+    for _, item in ipairs(affectedItems) do
+        local part = item.part
+        local light = item.light
+        local delayTime = (item.dist / maxRadius) * maxWaveTime
+
+        task.delay(delayTime, function()
+            -- 1. XÓA LUÔN POINT LIGHT / LIGHT INSTANCE
+            if light and light.Parent then
+                light.Enabled = false
+                light:Destroy()
+            end
+
+            -- 2. PART NEON: Chuyển màu đỏ, thu nhỏ dần & biến mất trong 4 giây rồi xóa
+            if part and part.Parent then
+                part.Material = Enum.Material.Neon
+                part.Color = targetColor
+
+                local shrinkTween = TweenService:Create(part, TweenInfo.new(4, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
+                    Size = Vector3.new(0.01, 0.01, 0.01),
+                    Transparency = 1
+                })
+                
+                shrinkTween:Play()
+                shrinkTween.Completed:Connect(function()
+                    if part and part.Parent then
+                        part:Destroy()
+                    end
+                end)
+            end
+        end)
+    end
+end
+
+-- 3. Lọc danh sách phòng hợp lệ
+local validRooms = {}
+for _, child in ipairs(Rooms:GetChildren()) do
+    if child:IsA("Model") and child:FindFirstChild("Floors") then
+        table.insert(validRooms, child)
+    end
+end
+
+if #validRooms < 2 then
+    warn("Cần ít nhất 2 phòng hợp lệ!")
+    return
+end
+
+local targetRoom = validRooms[#validRooms - 1]
+local floorsFolder = targetRoom.Floors
+
+local floorParts = {}
+for _, child in ipairs(floorsFolder:GetDescendants()) do
+    if child:IsA("BasePart") then
+        table.insert(floorParts, child)
+    end
+end
+
+if #floorParts == 0 then return end
+
+-- 4. Tính tâm mặt sàn
+local totalArea = 0
+local sumX, sumZ = 0, 0
+
+for _, part in ipairs(floorParts) do
+    local area = part.Size.X * part.Size.Z
+    sumX = sumX + (part.Position.X * area)
+    sumZ = sumZ + (part.Position.Z * area)
+    totalArea = totalArea + area
+end
+
+local avgX = sumX / totalArea
+local avgZ = sumZ / totalArea
+
+local closestPart = nil
+local shortestDistance = math.huge
+
+for _, part in ipairs(floorParts) do
+    local dist = (Vector2.new(part.Position.X, part.Position.Z) - Vector2.new(avgX, avgZ)).Magnitude
+    if dist < shortestDistance then
+        shortestDistance = dist
+        closestPart = part
+    end
+end
+
+local floorTopY = closestPart.Position.Y + (closestPart.Size.Y / 2)
+local spawnPosition = Vector3.new(closestPart.Position.X, floorTopY + 12, closestPart.Position.Z)
+
+-- Xóa thực thể cũ nếu có
+if workspace:FindFirstChild("SpawnedEntity") then
+    workspace.SpawnedEntity:Destroy()
+end
+
+-- 5. Load Thực thể
+local entityAssetId = "rbxassetid://112918441652222"
+local success, objects = pcall(function()
+    return game:GetObjects(entityAssetId)
+end)
+
+if not success or not objects or #objects == 0 then return end
+
+local entityModel = objects[1]
+entityModel.Name = "SpawnedEntity"
+
+for _, desc in ipairs(entityModel:GetDescendants()) do
+    if desc:IsA("BasePart") then
+        desc.Anchored = true
+    end
+end
+if entityModel:IsA("BasePart") then entityModel.Anchored = true end
+
+if entityModel:IsA("Model") then
+    entityModel:PivotTo(CFrame.new(spawnPosition))
+elseif entityModel:IsA("BasePart") then
+    entityModel.CFrame = CFrame.new(spawnPosition)
+end
+
+entityModel.Parent = workspace
+
+-- KÍCH HOẠT NỔ ĐÈN TỪ THỰC THỂ
+task.spawn(function()
+    triggerLightShockwaveFromEntity(spawnPosition, targetRoom)
+end)
+
+-- 6. Fade In Particle 0.75s
+task.spawn(function()
+    fadeModelParticles(entityModel, false, 0.75)
+end)
+
+-- 7. Logic Crouching & Trừ HP
+local isDestroying = false
+
+task.spawn(function()
+    task.wait(1.0)
+
+    while entityModel and entityModel.Parent and not isDestroying do
+        if localPlayer and localPlayer.Character then
+            local char = localPlayer.Character
+            local crouchVal = char:FindFirstChild("Crouching", true) or localPlayer:FindFirstChild("Crouching", true)
+            local isCrouching = crouchVal and crouchVal:IsA("BoolValue") and crouchVal.Value == true
+            
+            if not isCrouching then
+                local damageRemote = ReplicatedStorage:FindFirstChild("LocalDamage", true) or ReplicatedStorage:FindFirstChild("ChangeHealth", true)
+                if damageRemote and damageRemote:IsA("RemoteEvent") then
+                    pcall(function()
+                        damageRemote:FireServer(4, "A-60", 1, nil)
+                        damageRemote:FireServer("Damage", 4)
+                    end)
+                else
+                    local humanoid = char:FindFirstChildOfClass("Humanoid")
+                    if humanoid then
+                        humanoid:TakeDamage(4)
+                    end
+                end
+            end
+        end
+        task.wait(0.5)
+    end
+end)
+
+-- 8. Tự xóa thực thể khi mở phòng mới
+local connection
+connection = Rooms.ChildAdded:Connect(function(child)
+    if child:IsA("Model") and not isDestroying then
+        task.spawn(function()
+            local floors = child:FindFirstChild("Floors") or child:WaitForChild("Floors", 3)
+            if floors and entityModel and entityModel.Parent then
+                isDestroying = true
+                fadeModelParticles(entityModel, true, 0.75)
+                entityModel:Destroy()
+                if connection then connection:Disconnect() end
+            end
+        end)
+    end
+end)
