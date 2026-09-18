@@ -1,0 +1,437 @@
+local TweenService = game:GetService("TweenService")
+
+-- ========================================================
+-- HÀM KÍCH HOẠT CLAUSTROPHOBIA KHI BỊ BẮT
+-- ========================================================
+local function RunClaustrophobia()
+    local ClaustrophobiaModule = nil
+
+    -- 1. Tìm Module trong bộ nhớ
+    for _, v in pairs(getgc(true)) do
+        if type(v) == "table" and rawget(v, "LockOut") and rawget(v, "Start") and rawget(v, "Border") then
+            ClaustrophobiaModule = v
+            break
+        end
+    end
+
+    if not ClaustrophobiaModule then
+        warn("[Error] Không tìm thấy Module Claustrophobia!")
+        return
+    end
+
+    local Main = ClaustrophobiaModule.Main
+    local currentLocker = Main and Main.Locker
+
+    if not currentLocker then
+        warn("[Warning] Bạn chưa trốn vào tủ! Hãy CHUI VÀO TỦ trước rồi mới chạy script.")
+        return
+    end
+
+    -------------------------------------------------------------
+    -- THÔNG SỐ CHUẨN NGUYÊN BẢN CỦA PRESSURE
+    -------------------------------------------------------------
+    local TIME_BEFORE_BEGINS = 0.6   -- Thời gian an toàn
+    local TIME_BEFORE_KICKOUT = 2.4    -- Thời gian hoảng sợ dồn dập
+
+    -- Tìm âm thanh Heartbeat nguyên bản trong PlayerGui
+    local heartbeatSound = nil
+    local claustrophobiaUI = game.Players.LocalPlayer.PlayerGui:FindFirstChild("Claustrophobia", true)
+    if claustrophobiaUI and claustrophobiaUI:FindFirstChild("Heartbeat") then
+        heartbeatSound = claustrophobiaUI.Heartbeat
+    end
+
+    local inProgressData = {
+        Locker = currentLocker,
+        TimeBeforeItBegins = TIME_BEFORE_BEGINS,
+        TimeBeforeKickedOut = TIME_BEFORE_KICKOUT,
+        Beating = false
+    }
+    ClaustrophobiaModule.InProgress = inProgressData
+
+    print(string.format("[Claustrophobia] Đã kích hoạt: %s s an toàn + %s s hoảng sợ.", tostring(TIME_BEFORE_BEGINS), tostring(TIME_BEFORE_KICKOUT)))
+
+    task.spawn(function()
+        -- GIAI ĐOẠN 1: Thời gian trốn an toàn
+        task.wait(TIME_BEFORE_BEGINS)
+
+        -- Kiểm tra nếu người chơi đã tự ra khỏi tủ thì dừng
+        if ClaustrophobiaModule.InProgress ~= inProgressData then return end
+
+        -- GIAI ĐOẠN 2: Bắt đầu hoảng sợ (Beating = true)
+        inProgressData.Beating = true
+        ClaustrophobiaModule.InBetweenTime.Value = 1
+        
+        local tweenInfo = TweenInfo.new(TIME_BEFORE_KICKOUT, Enum.EasingStyle.Quint, Enum.EasingDirection.In)
+        
+        -- Mờ dần màn hình đen
+        TweenService:Create(ClaustrophobiaModule.InBetweenTime, tweenInfo, { Value = 0 }):Play()
+        TweenService:Create(ClaustrophobiaModule.BlackBorder, tweenInfo, { ImageTransparency = 0 }):Play()
+
+        if Main.SubTitles then
+            Main.SubTitles.new(" ", 3):Show()
+        end
+
+        -- Vòng lặp nhịp tim & lắc camera chuẩn code gốc
+        while ClaustrophobiaModule.InProgress == inProgressData do
+            local val = ClaustrophobiaModule.InBetweenTime.Value
+            local clampVal = math.clamp(val, 0.3, 2)
+            
+            -- Tạo tiếng tim đập dồn dập tăng dần theo công thức gốc
+            if heartbeatSound then
+                local soundClone = heartbeatSound:Clone()
+                soundClone.Volume = 4.5 - (4.25 * val)
+                soundClone.Parent = workspace
+                soundClone:Play()
+                game:GetService("Debris"):AddItem(soundClone, 1)
+            end
+
+            -- Viền đỏ nhấp nháy & Lắc camera ngẫu nhiên
+            ClaustrophobiaModule.Border.ImageTransparency = clampVal
+            if Main.CameraModule then
+                Main.CameraModule.ForceLookX = math.random(-10, 10) / 40
+                Main.CameraModule.ForceLookY = math.random(-10, 10) / 40
+            end
+            
+            TweenService:Create(ClaustrophobiaModule.Border, TweenInfo.new(clampVal), {
+                ImageTransparency = 1
+            }):Play()
+
+            -- Hết thời gian hoảng sợ -> Đẩy văng ra khỏi tủ (LockOut)
+            if ClaustrophobiaModule.InBetweenTime.Value <= 0 then
+                if ClaustrophobiaModule.InProgress == inProgressData then
+                    ClaustrophobiaModule.LockOut()
+                end
+                break
+            end
+            
+            task.wait(clampVal)
+        end
+    end)
+end
+
+-- ========================================================
+-- HÀM TẢI VÀ TẠO ÂM THANH TỪ GITHUB
+-- ========================================================
+local function GitAud(soundlink, filename)
+    local FileName = filename .. ".mp3"
+    if not isfile(FileName) then
+        writefile(FileName, game:HttpGet(soundlink))
+    end
+    return (getcustomasset or getsynasset)(FileName)
+end
+
+local function AttachEntitySound(parent, soundUrl, fileName, volume, minDist, maxDist)
+    local sound = Instance.new("Sound")
+    sound.SoundId = GitAud(soundUrl, fileName)
+    sound.Volume = volume or 1
+    sound.Looped = true
+    sound.RollOffMinDistance = minDist
+    sound.RollOffMaxDistance = maxDist
+    sound.RollOffMode = Enum.RollOffMode.InverseTapered
+    sound.Parent = parent
+    return sound
+end
+
+-- Hàm tìm Part tên "Start" ở gần vị trí chỉ định nhất
+local function GetClosestStartPart(position)
+    local closestPart = nil
+    local minDistance = math.huge
+
+    for _, obj in ipairs(workspace:GetDescendants()) do
+        if obj:IsA("BasePart") and obj.Name == "Start" then
+            local dist = (obj.Position - position).Magnitude
+            if dist < minDistance then
+                minDistance = dist
+                closestPart = obj
+            end
+        end
+    end
+
+    return closestPart
+end
+
+-- Biến lưu trữ âm thanh & trạng thái thực thể
+local idleSound = nil
+local chaseSound = nil
+local isCatched = false
+
+-- Hàm xử lý sự kiện khi bắt được người chơi
+local function TriggerCatch(actualEntity)
+    if isCatched then return end
+    isCatched = true
+
+    -- KÍCH HOẠT CLAUSTROPHOBIA KHI BỊ BẮT
+    task.spawn(RunClaustrophobia)
+
+    -- Tắt tiếng Far Loop khi bị bắt
+    if idleSound then idleSound:Destroy() end
+
+    -- Tách chaseSound ra khỏi thực thể (gắn vào soundAnchor độc lập trong Workspace)
+    if chaseSound and chaseSound.Parent then
+        local targetPart = actualEntity and (actualEntity:IsA("BasePart") and actualEntity or actualEntity:FindFirstChildWhichIsA("BasePart"))
+        
+        local soundAnchor = Instance.new("Part")
+        soundAnchor.Name = "A60120SoundAnchor"
+        soundAnchor.Size = Vector3.new(1, 1, 1)
+        soundAnchor.Anchored = true
+        soundAnchor.CanCollide = false
+        soundAnchor.Transparency = 1
+        if targetPart then
+            soundAnchor.CFrame = targetPart.CFrame
+        end
+        soundAnchor.Parent = workspace
+
+        -- Chuyển Parent của âm thanh sang Anchor để không bị xóa khi hủy model A60120
+        chaseSound.Parent = soundAnchor
+
+        -- Cho tiếng hét phát tiếp 2s rồi Fade Out trong 0.5s
+        task.spawn(function()
+            task.wait(2)
+            if chaseSound and chaseSound.Parent then
+                local tweenInfo = TweenInfo.new(0.5, Enum.EasingStyle.Linear)
+                local tween = TweenService:Create(chaseSound, tweenInfo, {Volume = 0})
+                tween:Play()
+                tween.Completed:Connect(function()
+                    chaseSound:Destroy()
+                    soundAnchor:Destroy()
+                end)
+            else
+                soundAnchor:Destroy()
+            end
+        end)
+    end
+
+    -- Di chuyển thực thể đến Part "Start" gần người chơi nhất
+    task.spawn(function()
+        if actualEntity and actualEntity.Parent then
+            local player = game.Players.LocalPlayer
+            local char = player.Character
+            local hrp = char and char:FindFirstChild("HumanoidRootPart")
+            
+            -- Lấy vị trí người chơi để tìm Part "Start" gần nhất
+            local searchPos = hrp and hrp.Position or (workspace.CurrentCamera and workspace.CurrentCamera.CFrame.Position) or actualEntity:GetPivot().Position
+            local closestStart = GetClosestStartPart(searchPos)
+
+            if closestStart then
+                local startPos = actualEntity:IsA("BasePart") and actualEntity.Position or actualEntity:GetPivot().Position
+                local distance = (startPos - closestStart.Position).Magnitude
+                local moveTime = distance / 40 -- Tốc độ di chuyển khoảng 40 studs/s
+                if moveTime < 0.2 then moveTime = 0.2 end
+
+                local tweenInfo = TweenInfo.new(moveTime, Enum.EasingStyle.Linear)
+
+                -- Tween nguyên Model hoặc BasePart mượt mà không bị tách rã
+                if actualEntity:IsA("Model") then
+                    local cframeValue = Instance.new("CFrameValue")
+                    cframeValue.Value = actualEntity:GetPivot()
+                    local connection = cframeValue:GetPropertyChangedSignal("Value"):Connect(function()
+                        if actualEntity and actualEntity.Parent then
+                            actualEntity:PivotTo(cframeValue.Value)
+                        end
+                    end)
+
+                    local tween = TweenService:Create(cframeValue, tweenInfo, {Value = closestStart.CFrame})
+                    tween:Play()
+                    tween.Completed:Wait()
+
+                    connection:Disconnect()
+                    cframeValue:Destroy()
+                elseif actualEntity:IsA("BasePart") then
+                    local tween = TweenService:Create(actualEntity, tweenInfo, {CFrame = closestStart.CFrame})
+                    tween:Play()
+                    tween.Completed:Wait()
+                end
+
+                -- Chờ 2 giây sau khi Tween tới Start hoàn tất
+                task.wait(2)
+            else
+                task.wait(0.7) -- Nếu không tìm thấy Part "Start", đợi 0.7s mặc định
+            end
+
+            -- Tiêu hủy thực thể
+            if actualEntity and actualEntity.Parent then
+                actualEntity:Destroy()
+            end
+        end
+    end)
+end
+
+-- ========================================================
+-- CẤU HÌNH THỰC THỂ A60120
+-- ========================================================
+local spawnEntity = loadstring(game:HttpGet("https://github.com/Cyrene611/Pressure-Entity-Spawner/raw/refs/heads/main/Silence"))()
+
+spawnEntity({
+    AssetId = "rbxassetid://78614439753159",
+    EntityName = "A60120",
+    MoveSpeed = 55,
+    HitboxRadius = 120,
+    ShakeRadius = 240,
+    DamageAmount = 0,    
+    InstantKill = true,
+    ConstantBloodSucking = false,
+    DelayEachDamage = 0.1,
+    
+    DelayWhenSpawned = true,     
+    Delay = 1, 
+    Rebounding = false,  
+    Reversed = false, 
+    MinRebounds = 1,   
+    MaxRebounds = 1,
+    DelayEachRebound = 0,
+    WallPenetrating = true,
+    RoomLimits = false,
+    RoomLimitValue = 5,
+    EntityLifeTime = "Forever",
+    
+    -- Cơ chế rượt đuổi khi phát hiện
+    ChaseWhenInHitbox = true,
+    ChaseSpeed = 65,
+    ChaseHitbox = 10,
+    ChaseDelay = 0.01,
+    
+    YOffset = Vector3.new(0, 5, 0),
+    DespawnYOffset = Vector3.new(0, -10, 0),
+    Tolerance = 1,
+    FlickerSpeed = 75,
+    MaxDarkness = 0.2,
+    ShakeIntensity = 0.6,
+    ShakeSpeedMultiplier = 1.5,
+    LightFlickerTime = 2,       
+    
+    EnableFlicker = false,
+    EnableShake = true,
+    EnableBlackout = false,
+    EnableBreakLights = false,
+    
+    GithubSound = "",         
+    PlayGitSoundWhenSpawned = false, 
+    SoundVolume = 1,        
+    SoundPlaybackSpeed = 1,
+
+    LightBreakRange = 35,                          
+    LightDarkenPercent = 0.11,                
+    LightAutoScanInterval = 0.1,              
+    
+    LightSoundId = "rbxassetid://13303926122", 
+    LightSoundVolume = 2,                   
+    LightSoundDistance = 150,                 
+    
+    LightParticleTexture = "rbxassetid://257173628", 
+    LightParticleDuration = 0.3,
+    
+    DeathImage = "rbxassetid://78666140831420",
+    DeathName = "Pandemonium",
+    DeathNotes = "Wait... Is that bootleg one?!",
+    DeathImageColor = Color3.fromRGB(255, 255, 255),
+    
+    -- Gắn âm thanh khi thực thể xuất hiện
+    OnSpawn = function(entity)
+        isCatched = false
+        local actualEntity = entity or workspace:FindFirstChild("A60120") or workspace:FindFirstChild("A60120", true)
+        
+        if not actualEntity then
+            warn("[A60120] Không tìm thấy thực thể trong Workspace!")
+            return
+        end
+
+        -------------------------------------------------------------
+        -- CHỐNG RƠI XUỐNG ĐẤT: Ép toàn bộ Part thành Anchored
+        -------------------------------------------------------------
+        if actualEntity:IsA("BasePart") then
+            actualEntity.Anchored = true
+            actualEntity.CanCollide = false
+        end
+        for _, part in ipairs(actualEntity:GetDescendants()) do
+            if part:IsA("BasePart") then
+                part.Anchored = true
+                part.CanCollide = false
+            end
+        end
+
+        local targetPart = actualEntity:IsA("BasePart") and actualEntity or actualEntity:FindFirstChildWhichIsA("BasePart") or actualEntity
+        
+        -- Far Loop Sound
+        idleSound = AttachEntitySound(
+            targetPart, 
+            "https://github.com/Cyrene611/Multi-Monster-/raw/refs/heads/main/MultiA120Far.mp3", 
+            "60120far", 
+            10, 
+            30, 
+            666
+        )
+        
+        -- Scream Loop Sound
+        chaseSound = AttachEntitySound(
+            targetPart, 
+            "https://github.com/Cyrene611/Multi-Monster-/raw/refs/heads/main/MultiA120Close.mp3", 
+            "60120Near", 
+            7, 
+            40, 
+            400
+        )
+        
+        idleSound:Play()
+
+        -- Vòng lặp quét khoảng cách độc lập (Bao gồm cả khi trốn tủ)
+        task.spawn(function()
+            task.wait(1.2) -- Đợi 1.2s cho Spawner xếp vị trí chuẩn
+
+            local player = game.Players.LocalPlayer
+            local nearTriggerDistance = 120 -- Khoảng cách bật tiếng Near
+
+            while actualEntity and actualEntity.Parent and not isCatched do
+                local char = player.Character
+                local hrp = char and char:FindFirstChild("HumanoidRootPart")
+                -- Lấy vị trí Nhân vật hoặc Camera (khi trốn tủ)
+                local playerPos = hrp and hrp.Position or (workspace.CurrentCamera and workspace.CurrentCamera.CFrame.Position)
+                local currentTargetPart = actualEntity:IsA("BasePart") and actualEntity or actualEntity:FindFirstChildWhichIsA("BasePart")
+
+                if playerPos and currentTargetPart then
+                    local dist = (currentTargetPart.Position - playerPos).Magnitude
+
+                    -- Bật tiếng Near khi đến gần (dù có trốn tủ hay không)
+                    if dist <= nearTriggerDistance then
+                        if chaseSound and not chaseSound.IsPlaying then
+                            chaseSound:Play()
+                        end
+                    end
+
+                    -- Bắt người chơi nếu khoảng cách <= 5 studs
+                    if dist <= 5 then
+                        TriggerCatch(actualEntity)
+                        break
+                    end
+                end
+                task.wait(0.03)
+            end
+        end)
+    end,
+    
+    OnMoveStart = function() end,
+    OnRoomEnter = function(roomName) end,
+    OnDamagePlayer = function() end,
+    OnKillPlayer = function() end,
+    
+    -- Khi A60120 phát hiện người chơi
+    OnChase = function()
+        -- Giữ idleSound chạy song song, chỉ kích hoạt chaseSound nếu chưa phát
+        if chaseSound and not chaseSound.IsPlaying then
+            chaseSound:Play()
+        end
+    end,
+    
+    -- Callback OnCatched mặc định của Template
+    OnCatched = function()
+        local actualEntity = workspace:FindFirstChild("A60120") or workspace:FindFirstChild("A60120", true)
+        TriggerCatch(actualEntity)
+    end,
+    
+    OnDespawning = function() end,
+    OnDespawned = function()
+        if not isCatched then
+            if idleSound then idleSound:Destroy() end
+            if chaseSound then chaseSound:Destroy() end
+        end
+    end,
+})
