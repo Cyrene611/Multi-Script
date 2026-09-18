@@ -65,7 +65,7 @@ spawnEntity({
     MaxRebounds = 1,
     DelayEachRebound = 3,
     
-    YOffset = Vector3.new(0, 2, 0),
+    YOffset = Vector3.new(0, 0, 0),
     DespawnYOffset = Vector3.new(0, 30, 0),
     Tolerance = 0.1,
     FlickerSpeed = 75,
@@ -387,12 +387,13 @@ spawnEntity({
         end)
 
         -- -------------------------------------------------------------
-        -- 2. GÁN ÂM THANH DI CHUYỂN CHO THỰC THỂ (ĐÃ SỬA TÌM TÊN A60CEASE)
+        -- 2. ANCHOR THỰC THỂ & GÁN ÂM THANH DI CHUYỂN
         -- -------------------------------------------------------------
         task.spawn(function()
+            local ceaseModel = nil
             local entityRoot = nil
             for i = 1, 40 do
-                local ceaseModel = (self and self.Model) or workspace:FindFirstChild("A60Cease") or workspace:FindFirstChild("Cease")
+                ceaseModel = (self and self.Model) or workspace:FindFirstChild("A60Cease") or workspace:FindFirstChild("Cease")
                 if ceaseModel then
                     entityRoot = ceaseModel.PrimaryPart or ceaseModel:FindFirstChildWhichIsA("BasePart")
                     if entityRoot then break end
@@ -400,9 +401,16 @@ spawnEntity({
                 task.wait(0.05)
             end
 
-            if entityRoot then
+            if ceaseModel then
+                -- Anchor toàn bộ bộ phận trong Model để chống rơi Void
+                for _, part in ipairs(ceaseModel:GetDescendants()) do
+                    if part:IsA("BasePart") then
+                        part.Anchored = true
+                    end
+                end
+
                 -- Xóa các sound mặc định cũ của spawner tạo ra
-                for _, obj in ipairs(entityRoot.Parent:GetDescendants()) do
+                for _, obj in ipairs(ceaseModel:GetDescendants()) do
                     if obj:IsA("Sound") then
                         obj:Stop()
                         obj:Destroy()
