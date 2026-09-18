@@ -1,0 +1,121 @@
+local function GitAud(soundlink, filename)
+    local url = soundlink
+    local FileName = filename
+    if not isfile(FileName..".mp3") then
+        writefile(FileName..".mp3", game:HttpGet(url))
+    end
+    return (getcustomasset or getsynasset)(FileName..".mp3")
+end
+
+local spawnEntity = loadstring(game:HttpGet("https://codeberg.org/qjjdjdjjd/Pressure-Files/raw/branch/main/Pressure-Entity-Spawner"))()
+
+spawnEntity({
+    AssetId = "rbxassetid://78614439753159",
+    EntityName = "A60Blitz",
+    MoveSpeed = 288,
+    HitboxRadius = 30,
+    ShakeRadius = 200,
+    DamageAmount = 100,    
+    InstantKill = true,
+    ConstantBloodSucking = false,
+    DelayEachDamage = 0.1,
+    
+    DelayWhenSpawned = true,     
+    Delay = 1, 
+    Rebounding = true,  
+    Reversed = false, 
+    MinRebounds = 2,   
+    MaxRebounds = 2,
+    DelayEachRebound = 1,
+    WallPenetrating = false,
+    IgnoreHiding = true,
+    RoomLimits = false,
+    RoomLimitValue = 5,
+    EntityLifeTime = "Forever",
+    
+    YOffset = Vector3.new(0, -1, 0),
+    DespawnYOffset = Vector3.new(-200, 100, -200),
+    Tolerance = 0.1,
+    FlickerSpeed = 75,
+    MaxDarkness = 0.2,
+    ShakeIntensity = 2.5,
+    ShakeSpeedMultiplier = 1.5,
+    LightFlickerTime = 10,   
+
+    DeafModeFrameTransparency = 0,
+    DeafModeFrameColor = Color3.new(1,1,1),
+    DeafModeFrameId = "rbxassetid://74845581534279",
+    DeafModeFrameDistance = 150,
+    DependsOnSpeed = true,
+    
+    EnableFlicker = false,
+    EnableShake = true,
+    EnableBlackout = true,
+    EnableBreakLights = true,
+    
+    GithubSound = "",         
+    PlayGitSoundWhenSpawned = false, 
+    SoundVolume = 1,        
+    SoundPlaybackSpeed = 1,
+
+    LightBreakRange = 67,                          
+    LightDarkenPercent = 0.11,                
+    LightAutoScanInterval = 0.1,              
+    
+    LightSoundId = "rbxassetid://13303926122", 
+    LightSoundVolume = 1,                   
+    LightSoundDistance = 40,                 
+    
+    LightParticleTexture = "rbxassetid://257173628", 
+    LightParticleDuration = 0.3,
+    
+    DeathImage = "rbxassetid://11417375410",
+    DeathName = "A-60",
+    DeathNotes = "HEHEHEH",
+    DeathImageColor = Color3.fromRGB(255, 255, 255),
+    
+    OnSpawn = function(entityModel)
+        local model = entityModel or workspace:FindFirstChild("A60God")
+        if model then
+            -- Khóa vật lý và tắt va chạm
+            for _, part in ipairs(model:GetDescendants()) do
+                if part:IsA("BasePart") then
+                    part.CanCollide = false
+                    part.CanTouch = false
+                    part.CanQuery = false
+                    part.Anchored = true
+                end
+            end
+
+            -- Xác định bộ phận gắn âm thanh (gắn vào PrimaryPart hoặc part bất kỳ của Model)
+            local soundParent = model.PrimaryPart or model:FindFirstChildWhichIsA("BasePart") or model
+            local soundAsset = GitAud("https://github.com/Cyrene611/Multi-Monster-/raw/refs/heads/main/MultiBlitzClose.mp3", "Blitzclose")
+
+            -- Âm thanh 1 (RollOffMaxDistance = 450, Volume = 6)
+            local sound1 = Instance.new("Sound")
+            sound1.Name = "EntitySound_Far"
+            sound1.SoundId = soundAsset
+            sound1.Volume = 2
+            sound1.RollOffMaxDistance = 355
+            sound1.Looped = true
+            sound1.Parent = soundParent
+            sound1:Play()
+
+            -- Âm thanh 2 (RollOffMaxDistance = 130, Volume = 6)
+            local sound2 = Instance.new("Sound")
+            sound2.Name = "EntitySound_Near"
+            sound2.SoundId = soundAsset
+            sound2.Volume = 4
+            sound2.RollOffMaxDistance = 288
+            sound2.Looped = true
+            sound2.Parent = soundParent
+            sound2:Play()
+        end
+    end,
+    OnMoveStart = function() end,
+    OnRoomEnter = function(roomName) end,
+    OnDamagePlayer = function() end,
+    OnKillPlayer = function() end,
+    OnDespawning = function() end,
+    OnDespawned = function() end,
+})
