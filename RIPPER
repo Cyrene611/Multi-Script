@@ -1,0 +1,232 @@
+local Players = game:GetService("Players")
+local RunService = game:GetService("RunService")
+local TweenService = game:GetService("TweenService")
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local CoreGui = game:GetService("CoreGui")
+local Workspace = game:GetService("Workspace")
+
+local LocalPlayer = Players.LocalPlayer
+
+-- ==========================================
+-- HÀM HỖ TRỢ TẢI ÂM THANH TỪ GITHUB
+-- ==========================================
+local function GitAud(soundgit, filename)
+    local success, result = pcall(function()
+        return writefile(filename .. ".mp3", game:HttpGet(soundgit))
+    end)
+    if success and getcustomasset then
+        return getcustomasset(filename .. ".mp3")
+    elseif success and getsynasset then
+        return getsynasset(filename .. ".mp3")
+    end
+    return soundgit
+end
+
+-- ==========================================
+-- HÀM PHÁT ÂM THANH SIÊU TO (BOOST VOLUME)
+-- ==========================================
+local function playBoostedSound(assetId, name, volume, rollOffMax, rollOffMin, parent, layers)
+    layers = layers or 2 -- Giảm xuống 2 lớp âm thanh phát cùng lúc
+    for i = 1, layers do
+        local sound = Instance.new("Sound")
+        sound.Name = name .. "_Layer" .. i
+        sound.SoundId = assetId
+        sound.Volume = volume
+        sound.RollOffMinDistance = rollOffMin or 50
+        sound.RollOffMaxDistance = rollOffMax
+        sound.RollOffMode = Enum.RollOffMode.Linear
+        sound.Looped = true
+        sound.Parent = parent
+        sound:Play()
+    end
+end
+
+-- ==========================================
+-- HÀM XỬ LÝ KẾT LIỄU TỨC THÌ (INSTANT KILL)
+-- ==========================================
+local function killOneShot()
+    local character = LocalPlayer.Character
+    local humanoid = character and character:FindFirstChild("Humanoid")
+    
+    -- Trừ sạch máu trên Client tức thì
+    if humanoid then
+        humanoid.Health = 0
+    end
+
+    -- Gửi RemoteEvent sát thương cực lớn lên Server
+    local damageRemote = ReplicatedStorage:FindFirstChild("LocalDamage", true) or ReplicatedStorage:FindFirstChild("ChangeHealth", true)
+    
+    if damageRemote and damageRemote:IsA("RemoteEvent") then
+        damageRemote:FireServer(1000, "SittingItOut", 1, nil)
+        damageRemote:FireServer("Damage", 1000)
+        print("ngol")
+    else
+        print("đéo được")
+    end
+end
+
+-- ==========================================
+-- 1. CHẠY HIỆU ỨNG MÀN HÌNH / BÁO HIỆU TRƯỚC
+-- ==========================================
+task.spawn(function()
+    pcall(function()
+        loadstring(game:HttpGet("https://github.com/Cyrene611/Multi-Monster-/raw/refs/heads/main/Ripper%20spawn"))()
+    end)
+end)
+
+-- ==========================================
+-- 2. DELAY 2 GIÂY
+-- ==========================================
+task.wait(3)
+
+-- ==========================================
+-- 3. SAU 2S MỚI KHỞI TẠO & SPAWN THỰC THỂ
+-- ==========================================
+local spawnEntity = loadstring(game:HttpGet("https://codeberg.org/qjjdjdjjd/Pressure-Files/raw/branch/main/Pressure-Entity-Spawner"))()
+
+local ENTITY_NAME = "A60Ripe"
+
+spawnEntity({
+    AssetId = "https://github.com/Cyrene611/Pressure-Entity-Spawner/raw/refs/heads/main/A-6000.rbxmx",
+    EntityName = ENTITY_NAME,
+    MoveSpeed = 160,
+    HitboxRadius = 30,
+    ShakeRadius = 233,
+    DamageAmount = 100,    
+    InstantKill = true,
+    ConstantBloodSucking = false,
+    DelayEachDamage = 0.1,
+    
+    DelayWhenSpawned = false,     
+    Delay = 0, 
+    
+    Rebounding = false,  
+    Reversed = false, 
+    MinRebounds = 1,   
+    MaxRebounds = 1,
+    DelayEachRebound = 0,
+    WallPenetrating = false,
+    IgnoreHiding = true,
+    RoomLimits = false,
+    RoomLimitValue = 5,
+    EntityLifeTime = "Forever",
+    
+    YOffset = Vector3.new(0, 4, 0),
+    DespawnYOffset = Vector3.new(0, 30, 0),
+    Tolerance = 0.1,
+    FlickerSpeed = 75,
+    MaxDarkness = 0.2,
+    ShakeIntensity = 2.5,
+    ShakeSpeedMultiplier = 1.5,
+    LightFlickerTime = 10,   
+
+    DeafModeFrameTransparency = 0.8,
+    DeafModeFrameColor = Color3.new(1,1,1),
+    DeafModeFrameId = "rbxassetid://73134690338274",
+    DeafModeFrameDistance = 300,
+    DependsOnSpeed = true,
+    
+    EnableFlicker = false,
+    EnableShake = true,
+    EnableBlackout = false,
+    EnableBreakLights = false,
+    
+    GithubSound = "https://github.com/vuivuiviu2/Pressure-/raw/refs/heads/main/doors-ripper-arrival-sound_1.mp3",         
+    PlayGitSoundWhenSpawned = false, 
+    SoundVolume = 3.5,        
+    SoundPlaybackSpeed = 1,
+
+    LightBreakRange = 35,                          
+    LightDarkenPercent = 0.11,                
+    LightAutoScanInterval = 0.1,              
+    
+    LightSoundId = "rbxassetid://13303926122", 
+    LightSoundVolume = 2,                   
+    LightSoundDistance = 150,                 
+    
+    LightParticleTexture = "rbxassetid://257173628", 
+    LightParticleDuration = 0.3,
+    
+    DeathImage = "rbxassetid://11417375410",
+    DeathName = "A60",
+    DeathNotes = "🤑",
+    DeathImageColor = Color3.fromRGB(255, 255, 255),
+    
+    -- ÂM THANH GITHUB VỚI 2 LAYER
+    OnSpawn = function()
+        task.spawn(function()
+            local entityModel = Workspace:WaitForChild(ENTITY_NAME, 5) or Workspace:FindFirstChild(ENTITY_NAME) or Workspace:FindFirstChild("Ripe")
+            if not entityModel then return end
+
+            local primaryPart = entityModel.PrimaryPart or entityModel:FindFirstChildWhichIsA("BasePart")
+            if not primaryPart then return end
+
+            -- Âm thanh 1: MultiRipperFar (2 lớp âm thanh)
+            local farAsset = GitAud("https://github.com/Cyrene611/Pressure-Entity-Spawner/raw/refs/heads/main/MultiRipperFar.mp3", "MultiRipperFar")
+            playBoostedSound(farAsset, "MultiRipperFarSound", 8, 600, 100, primaryPart, 2)
+
+            -- Âm thanh 2: MultiRipperClose (2 lớp âm thanh)
+            local closeAsset = GitAud("https://github.com/Cyrene611/Pressure-Entity-Spawner/raw/refs/heads/main/MultiRipperClose.mp3", "MultiRipperClose")
+            playBoostedSound(closeAsset, "MultiRipperCloseSound", 8, 300, 50, primaryPart, 2)
+        end)
+    end,
+    
+    OnMoveStart = function()
+        task.spawn(function()
+            local player = Players.LocalPlayer
+            local entityModel = Workspace:FindFirstChild(ENTITY_NAME) or Workspace:FindFirstChild("A60Ripe")
+            if not entityModel then return end
+            
+            local primaryPart = entityModel.PrimaryPart or entityModel:FindFirstChildWhichIsA("BasePart")
+            if not primaryPart then return end
+            
+            local triggered100 = false
+            local triggered30 = false
+            local connection
+            
+            connection = RunService.RenderStepped:Connect(function()
+                if not entityModel or not entityModel.Parent or not primaryPart or not primaryPart.Parent then
+                    if connection then connection:Disconnect() end
+                    return
+                end
+                
+                local character = player.Character
+                if not character or not character:FindFirstChild("HumanoidRootPart") then return end
+                
+                local distance = (character.HumanoidRootPart.Position - primaryPart.Position).Magnitude
+                
+                if distance < 100 and not triggered100 then
+                    triggered100 = true
+                    task.spawn(function()
+                        pcall(function()
+                            loadstring(game:HttpGet("https://github.com/Cyrene611/Multi-Monster-/raw/refs/heads/main/Vangdo"))()
+                        end)
+                    end)
+                end
+                
+                if distance < 30 and not triggered30 then
+                    triggered30 = true
+                    task.spawn(function()
+                        pcall(function()
+                            loadstring(game:HttpGet("https://github.com/Cyrene611/Multi-Monster-/raw/refs/heads/main/Vangdo"))()
+                        end)
+                    end)
+                    if connection then connection:Disconnect() end
+                end
+            end)
+        end)
+    end,
+    
+    OnRoomEnter = function(roomName) end,
+    
+    OnDamagePlayer = function()
+        killOneShot()
+    end,
+    
+    OnKillPlayer = function() end,
+    
+    -- XÓA BỎ ÂM THANH DESPAWN VÀ SCREAM KHÔNG TỒN TẠI
+    OnDespawning = function() end,
+    
+    OnDespawned = function() end,
+})
