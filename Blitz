@@ -21,7 +21,7 @@ spawnEntity({
     DelayEachDamage = 0.1,
     
     DelayWhenSpawned = true,     
-    Delay = 4.5, 
+    Delay = 5, 
     Rebounding = false,  
     Reversed = false, 
     MinRebounds = 2,   
