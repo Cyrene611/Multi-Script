@@ -12,8 +12,8 @@ local spawnEntity = loadstring(game:HttpGet("https://codeberg.org/qjjdjdjjd/Pres
 spawnEntity({
     AssetId = "rbxassetid://78614439753159",
     EntityName = "A60GodR",
-    MoveSpeed = 30,
-    HitboxRadius = 15,
+    MoveSpeed = 35,
+    HitboxRadius = 10,
     ShakeRadius = 100,
     DamageAmount = 100,    
     InstantKill = true,
