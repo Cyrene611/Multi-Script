@@ -266,7 +266,7 @@ spawnEntity({
     EntityName = "A60120",
     MoveSpeed = 55,
     HitboxRadius = 120,
-    ShakeRadius = 240,
+    ShakeRadius = 279,
     DamageAmount = 0,    
     InstantKill = true,
     ConstantBloodSucking = false,
@@ -286,7 +286,7 @@ spawnEntity({
     
     -- Cơ chế rượt đuổi khi phát hiện
     ChaseWhenInHitbox = true,
-    ChaseSpeed = 65,
+    ChaseSpeed = 45,
     ChaseHitbox = 10,
     ChaseDelay = 0.01,
     
