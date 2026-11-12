@@ -31,7 +31,7 @@ local function RunClaustrophobia()
     -- THÔNG SỐ CHUẨN NGUYÊN BẢN CỦA PRESSURE
     -------------------------------------------------------------
     local TIME_BEFORE_BEGINS = 0.6   -- Thời gian an toàn
-    local TIME_BEFORE_KICKOUT = 2.4    -- Thời gian hoảng sợ dồn dập
+    local TIME_BEFORE_KICKOUT = 3.5    -- Thời gian hoảng sợ dồn dập
 
     -- Tìm âm thanh Heartbeat nguyên bản trong PlayerGui
     local heartbeatSound = nil
