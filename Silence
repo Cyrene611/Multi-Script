@@ -251,13 +251,13 @@ task.spawn(function()
                 local damageRemote = ReplicatedStorage:FindFirstChild("LocalDamage", true) or ReplicatedStorage:FindFirstChild("ChangeHealth", true)
                 if damageRemote and damageRemote:IsA("RemoteEvent") then
                     pcall(function()
-                        damageRemote:FireServer(4, "A-60", 1, nil)
-                        damageRemote:FireServer("Damage", 4)
+                        damageRemote:FireServer(1, "A-60", 1, nil)
+                        damageRemote:FireServer("Damage", 1)
                     end)
                 else
                     local humanoid = char:FindFirstChildOfClass("Humanoid")
                     if humanoid then
-                        humanoid:TakeDamage(4)
+                        humanoid:TakeDamage(1)
                     end
                 end
             end
