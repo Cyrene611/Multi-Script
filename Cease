@@ -49,7 +49,7 @@ local spawnEntity = loadstring(game:HttpGet("https://raw.githubusercontent.com/c
 spawnEntity({
     AssetId = "rbxassetid://78614439753159",
     EntityName = "A60Cease",
-    MoveSpeed = 75,
+    MoveSpeed = 80,
     HitboxRadius = 40,
     ShakeRadius = 100,
     DamageAmount = 0,    
